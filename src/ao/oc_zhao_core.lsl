@@ -93,6 +93,9 @@
 // End of add OCCuffs
 
 
+// Ansariel: Random walk enhancement
+// ZHAO_RANDOMWALK                      Enables random walk animation
+// ZHAO_DEFINEDWALK                     Uses the selected single walk animation
 
 
 //
@@ -187,7 +190,7 @@
 // CONSTANTS
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Default notecard we read on script_entry
-string defaultNoteCard = "Girl";
+string defaultNoteCard = "Default";
 
 // List of all the animation states
 list animState = [ "Sitting on Ground", "Sitting", "Striding", "Crouching", "CrouchWalking",
@@ -254,8 +257,15 @@ list tokens = [
 list multiAnimTokenIndexes = [
     0,  // "[ Sitting On Ground ]"
     1,  // "[ Sitting ]"
+    13, // Ansariel: [ Jumping ]
+    15, // Ansariel: [ Running ]
     18, // "[ Walking ]"
-    20  // "[ Standing ]"
+    20,  // "[ Standing ]"
+    21, // Ansariel: [ Swimming Down ]
+    22, // Ansariel: [ Swimming Up ]
+    23, // Ansariel: [ Swimming Forward ]
+    24, // Ansariel: [ Floating ]
+    25 // Ansariel: [ Typing ]
 ];
 
 // Index of interesting animations
@@ -320,6 +330,10 @@ integer typingStatus = FALSE;               // status of avatar typing
 integer numTyping;                          // Number of typing anims
 integer numStands;                          // Number of stands - needed for auto cycle
 integer randomStands = FALSE;               // Whether stands cycle randomly
+
+// Ansariel:
+integer randomWalks = FALSE;                 // Whether walks should be cycled randomly
+
 integer curStandIndex;                      // Current stand - needed for cycling
 string curStandAnim = "";                   // Current Stand animation
 string curSitAnim = "";                     // Current sit animation
@@ -401,6 +415,13 @@ key g_kSetDefault; //menu id for setting  default notecard.
 // CODE
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/*****************************************************************************
+ * Ansariel: Retrieves a random integer value between two given numbers      *
+ *****************************************************************************/
+integer random_integer( integer min, integer max )
+{
+  return min + (integer)llFrand( max - min + 1 );
+}
 
 
 key Dialog(key rcpt, string prompt, list choices, list utilitybuttons, integer page)
@@ -473,7 +494,8 @@ startNewAnimation( string _anim, integer _animIndex, string _state ) {
             stopAnimationList( lastAnim );
         if ( _anim != EMPTY ) {   // Time to play a new animation
              list newAnimSet = llParseStringKeepNulls( _anim, [SEPARATOR], [] );
-             newAnim = llList2String( newAnimSet, (integer)llFloor(llFrand(llGetListLength(newAnimSet))) );
+             //newAnim = llList2String( newAnimSet, (integer)llFloor(llFrand(llGetListLength(newAnimSet))) );
+            newAnim = llList2String( newAnimSet, random_integer(1, llGetListLength(newAnimSet)) - 1);
 
              startAnimationList( newAnim );
 
@@ -559,7 +581,10 @@ animOverride() {
         }
     }
     else if ( curAnimIndex == walkingIndex ) {
-        startNewAnimation( curWalkAnim, walkingIndex, curAnimState );
+        // Ansariel: Randomize Walks
+        if (randomWalks) startNewAnimation(llList2String(overrides, walkingIndex), walkingIndex, curAnimState);
+        else startNewAnimation( curWalkAnim, walkingIndex, curAnimState );
+    
     }
     else if ( curAnimIndex == sitgroundIndex ) {
         startNewAnimation( curGsitAnim, sitgroundIndex, curAnimState );
@@ -1115,8 +1140,22 @@ default {
                     // Cycling to next stand - sequential or random
                     randomStands = FALSE;
                 Notify(whoid, "Stand cycling: Sequential", FALSE );
+            }
+
+        // Ansariel: Random walks
+        else if (_message == "ZHAO_RANDOMWALK")
+        {
+            randomWalks = TRUE;
+            Notify(whoid, "Walking animation: Random", FALSE);
+        }
+        else if (_message == "ZHAO_DEFINEDWALK")
+        {
+            randomWalks = FALSE;
+            Notify(whoid, "Walking animation: " + curWalkAnim, FALSE);
+        }
+        // Ansariel: End Random walks
     
-            } else if ( _message == "ZHAO_SETTINGS" ) {
+            else if ( _message == "ZHAO_SETTINGS" ) {
                     // Print settings
                     string notifymessage;
                 if ( sitOverride == TRUE ) {
@@ -1124,6 +1163,16 @@ default {
                 } else {
                         notifymessage += "Sit override: Off";
                 }
+            // Ansariel: Random walks
+            if (randomWalks == TRUE)
+            {
+                notifymessage += "\n" + "Walk animation: Random";
+            }
+            else
+            {
+                notifymessage += "\n" + "Walk animation: " + curWalkAnim;
+            }
+            // Ansariel: End Random walks
                 if ( randomStands == TRUE ) {
                     notifymessage += "\n" + "Stand cycling: Random";
                 } else {
@@ -1372,7 +1421,8 @@ default {
     timer() {
         // Typing AO ported from MB2.
         if(numTyping > 0 && typingOverrideOn) {            
-            integer typingTemp = llGetAgentInfo(Owner) & AGENT_TYPING; // are we typing?
+            integer agentInfo = llGetAgentInfo(Owner);
+            integer typingTemp = agentInfo & AGENT_TYPING && !(agentInfo & AGENT_SITTING) && sitAnywhereOn == FALSE; // are we typing and not sitting?
             if (typingTemp != typingStatus) { //status changed since last checked?
                 typingOverride(typingTemp);
                 typingStatus = typingTemp;//save the current status.

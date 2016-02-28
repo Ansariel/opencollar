@@ -93,6 +93,9 @@
 // End of add OCCuffs
 
 
+// Ansariel: Random walk enhancement
+// ZHAO_RANDOMWALK                      Enables random walk animation
+// ZHAO_DEFINEDWALK                     Uses the selected single walk animation
 
 
 // So, to send a command to the ZHAO-II engine, send a linked message:
@@ -148,6 +151,9 @@ integer StandAO = TRUE; // store state of standing ao
 integer randomStands = FALSE;
 integer typingOverrideOn = TRUE;            // Whether we're overriding typing or not
 integer wasDetached;
+
+// Ansariel: Random walk
+integer randomWalks = FALSE;
 
 //Left here for backwards compatiblity... to be removed sooner than later
 integer collarchannel = -782690;
@@ -228,7 +234,7 @@ DoMenu(key id, integer page) {
         lButtons += ["Collar Menu","Load",
                     "Sits","Ground Sits","Walks",
                     "Sits "+Checkbox(sitOverride),"Typing "+Checkbox(typingOverrideOn),"Stand Time",
-                    "Next Stand","Shuffle "+Checkbox(randomStands),"HUD Style"];
+                    "Next Stand","Shuffle "+Checkbox(randomStands),"Randwalk "+Checkbox(randomWalks),"HUD Style"];
     } else { // Else, if we're not attached, we must be updating and therefore only display the update menu
         lButtons = ["Load"];
         prompt = "\nCustomization:\n\n1. Take a notecard set from the AO contents\n2. List your animations in the corresponding lines\n3. Give the notecard a new name\n4. Drop the notecard into the AO contents\n5. Also drop the animations you listed inside\n6. Click the Load button to select your new set\n7. Error? Check for typos or missing anims\n\nNote: Moving animations in bulk could cause some to go missing in the ether. Don't drop more than half a dozen at once, wait two seconds, then drop the next batch.\n\nwww.opencollar.at/ao";
@@ -411,6 +417,20 @@ default {
                         llMessageLinked(LINK_THIS, COMMAND_AUTH, "ZHAO_WALKS", _id);
                     else if ( _message == "Ground Sits" ) 
                         llMessageLinked(LINK_THIS, COMMAND_AUTH, "ZHAO_GROUNDSITS", _id);
+                    // Ansariel: Random walks
+                    else if ( _message == "Randwalk " +Checkbox(0) )
+                    {
+                        llMessageLinked(LINK_THIS, COMMAND_AUTH, "ZHAO_RANDOMWALK", _id);
+                        randomWalks = TRUE;
+                        DoMenu(_id,page);
+                    }
+                    else if ( _message == "Randwalk " +Checkbox(1) )
+                    {
+                        llMessageLinked(LINK_THIS, COMMAND_AUTH, "ZHAO_DEFINEDWALK", _id);
+                        randomWalks = FALSE;
+                        DoMenu(_id,page);
+                    }
+                    // Ansariel: End Random walks
                     else if ( _message == "Load" ) {
                         integer n = llGetInventoryNumber( INVENTORY_NOTECARD );
                         integer i;
